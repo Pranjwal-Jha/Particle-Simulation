@@ -1,8 +1,5 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Particle Simulation Using SFML</title>
-</head>
 <body>
   <h1>Particle Simulation Using SFML</h1>
 
