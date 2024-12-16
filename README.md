@@ -58,10 +58,5 @@
   <h2>License</h2>
   <p>This project is open-source and available under the <a href="https://opensource.org/licenses/MIT" target="_blank">MIT License</a>.</p>
 
-  <h2>Acknowledgments</h2>
-  <ul>
-    <li><a href="https://www.sfml-dev.org/" target="_blank">SFML</a> for its awesome library.</li>
-    <li>All contributors to the C++ and game development communities for inspiration and resources.</li>
-  </ul>
 </body>
 </html>
