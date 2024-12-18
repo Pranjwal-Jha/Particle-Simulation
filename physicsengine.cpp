@@ -2,6 +2,8 @@
 #include <iostream>
 #include <vector>
 #include <math.h>
+#include "random.h"
+
 
 namespace constants{
     const float g{9.8};
