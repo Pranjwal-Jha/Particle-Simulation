@@ -1,10 +1,8 @@
-
 #ifndef pran
 #define pran
-
 #include <iostream>
 #include <random>
-namespace random
+namespace Random
 {
 	inline std::mt19937 generate()
 	{
@@ -15,7 +13,7 @@ namespace random
 
 	inline std::mt19937 mt{generate()};
 
-	
+
 }
 //		std::uniform_int_distribution numbers{1, 100};
 //		int KJ{ numbers(random::mt) };

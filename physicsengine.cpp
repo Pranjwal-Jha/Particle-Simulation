@@ -3,23 +3,54 @@
 #include <vector>
 #include <math.h>
 #include "random.h"
-
+//#include <random>
 
 namespace constants{
     const float g{9.8};
     const float pmp{20.f};
+}
+
+namespace Colors{
+    enum Color{
+        RobinBlue,
+        Cyclamen,
+        ScreminGreen,
+        Lime,
+        Coral,
+        Sunglow
+    };
+
+    sf::Color getColor(Color color){
+        switch(color){
+            case RobinBlue:
+            return sf::Color(99, 204, 202);
+            case Cyclamen:
+            return sf::Color(254, 93, 159);
+            case ScreminGreen:
+            return sf::Color(119, 255, 148);
+            case Lime:
+            return sf::Color(206, 255, 26);
+            case Coral:
+            return sf::Color(255, 120, 79);
+            case Sunglow:
+            return sf::Color(255, 202, 58);
+            default:
+            return sf::Color(138, 201, 38);
+        }
+    }
 }
 struct Particle{
     sf::Vector2f position;
     sf::Vector2f position_last;
     sf::Vector2f acceleration;
     sf::Vector2f velocity;
-    Particle(sf::Vector2f position, sf::Vector2f position_last, sf::Vector2f acceleration,sf::Vector2f velocity)
-        :position(position),position_last(position_last),acceleration(acceleration),velocity(velocity)
+    sf::Color color;
+    Particle(sf::Vector2f position, sf::Vector2f position_last, sf::Vector2f acceleration,sf::Vector2f velocity,sf::Color color)
+        :position(position),position_last(position_last),acceleration(acceleration),velocity(velocity),color(color)
         {
         }
     Particle()
-        : position(0.f,0.f),position_last(0.f,0.f),acceleration(0.f,0.f),velocity(0.f,0.f)
+        : position(0.f,0.f),position_last(0.f,0.f),acceleration(0.f,0.f),velocity(0.f,0.f),color(sf::Color::Black)
         {
         }
 
@@ -59,6 +90,7 @@ struct Particle{
     }
     void draw(sf::RenderWindow& window, sf::CircleShape& circle){
         circle.setPosition(position);
+        circle.setFillColor(color);
         window.draw(circle);
     }
 };
@@ -75,10 +107,10 @@ int main(){
 
     //basic balls
     std::vector<Particle> particles;
-    sf::CircleShape circle(18.f);
+    sf::CircleShape circle(20.f);
     circle.setFillColor(sf::Color(178, 237, 197));
-    circle.setOutlineThickness(2.f);
-    circle.setOutlineColor(sf::Color(123, 178, 217));
+    //circle.setOutlineThickness(2.f);
+    //circle.setOutlineColor(sf::Color(123, 178, 217));
 
     //boundary definition
     sf::CircleShape boundary(200.f);
@@ -91,10 +123,11 @@ int main(){
         boundary.getPosition(),
         boundary.getPosition(),
         sf::Vector2f(0.f,0.f),
-        sf::Vector2f(0.f,0.f)
+        sf::Vector2f(0.f,0.f),
+        sf::Color(sf::Color::White)
     );
-    boundary.setFillColor(sf::Color::White);
-
+    //boundary.setFillColor(sf::Color::White);
+    // adding color property to struct makes this line reduntant
 
     auto frame_clock = sf::Clock{};
     float lasttime=0;
@@ -105,17 +138,24 @@ int main(){
         window.clear(sf::Color::Black);
         p_boundary.draw(window,boundary);
         auto dt = frame_clock.restart().asSeconds();
+        std::uniform_int_distribution<int> color_count{0,6};
+        int r_number{color_count(Random::mt)};
+        sf::Color r_color = Colors::getColor(static_cast<Colors::Color>(r_number));
         while(window.pollEvent(event)){
             if(event.type==sf::Event::Closed){
                 window.close();
             }
             else if(sf::Mouse::isButtonPressed(sf::Mouse::Left)){
                 const sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
-                    particles.emplace_back(sf::Vector2f(float(mousePosition.x),float(mousePosition.y)),
-                    sf::Vector2f(float(mousePosition.x),float(mousePosition.y)),
-                    sf::Vector2f(0.f,0.f),sf::Vector2f(0.f,0.f));
+
+                particles.emplace_back(sf::Vector2f(float(mousePosition.x),float(mousePosition.y)),
+                sf::Vector2f(float(mousePosition.x),float(mousePosition.y)),
+                sf::Vector2f(0.f,0.f),sf::Vector2f(0.f,0.f)
+                ,r_color
+                );
             }
         }
+        //circle.setFillColor(Colors::getColor(static_cast<Colors::Color>(r_number)));
         //rendering balls
         for(auto& particle:particles){
             particle.apply_gravity(dt);
