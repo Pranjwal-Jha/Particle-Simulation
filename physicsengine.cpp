@@ -1,13 +1,14 @@
 #include <SFML/Graphics.hpp>
-#include <iostream>
 #include <vector>
 #include <math.h>
 #include "random.h"
-//#include <random>
+
+// REWORK THE ENTIRE THE THING WITH CLASSES
+
 
 namespace constants{
     const float g{9.8};
-    const float pmp{20.f};
+    const float pmp{800.f};
 }
 
 namespace Colors{
@@ -65,9 +66,9 @@ struct Particle{
         //sf::Vector2f new_pos = position.x*cur_velocity.x+  acceleration*(dt*dt);
         position_last = position; // sfml methods only work with float
         position = new_pos;         // using .f makes 2 -> 2.0
-        velocity = getvelocity();
+        //velocity = getvelocity();
         // reseting acc for next frame
-        //acceleration = sf::Vector2f(0,0);
+        acceleration = sf::Vector2f(0,0);
         //return position
     }
 
@@ -78,16 +79,39 @@ struct Particle{
     sf::Vector2f getvelocity(){
         return position - position_last;
     }
-    void apply_boundary(Particle& boundary){
-        const sf::Vector2f r = position - boundary.position;
-        const float dist = sqrt(r.x*r.x + r.y*r.y);
-        if(dist > 180.f){
-            //acceleration.y = -acceleration.y;
-            //acceleration.x = -acceleration.x;
-            sf::Vector2f unit_vector = r/dist;
-            position = boundary.position + unit_vector*180.f;
+    //void apply_boundary(Particle& boundary,sf::CircleShape& circle){
+    //    //const sf::Vector2f r = position - circle.getPosition();
+    //    const sf::Vector2f r = circle.getOrigin() - position;
+    //    const float dist = sqrt(r.x*r.x + r.y*r.y);
+    //    if(dist > 180.f){
+    //        //acceleration.y = -acceleration.y;
+    //        //acceleration.x = -acceleration.x;
+    //        const sf::Vector2f unit_vector = r/dist;
+    //        const sf::Vector2f perp = {-unit_vector.y,unit_vector.x};
+    //        const sf::Vector2f vel = getvelocity();
+    //        position = circle.getOrigin() - unit_vector*(circle.getRadius()-20.f);
+    //        setVelocity(2.0f*(vel.x*perp.x+vel.y*perp.y)*perp-vel,1.0f);
+    //        //position = boundary.position + unit_vector*180.f;
+
+    //    }
+    //}
+    void apply_boundary(Particle& boundary, sf::CircleShape& circle) {
+        const sf::Vector2f r = position - circle.getPosition(); // Distance from ball to circle center
+        const float dist = sqrt(r.x * r.x + r.y * r.y); // Calculate distance magnitude
+
+        if (dist > circle.getRadius() - 20.f) { // Check if ball is outside boundary
+            const sf::Vector2f unit_vector = r / dist; // Unit vector pointing outwards
+            const sf::Vector2f vel = getvelocity(); // Get current velocity
+
+            // Reflect position to boundary edge
+            position = circle.getPosition() + unit_vector * (circle.getRadius() - 20.f);
+
+            // Reflect velocity
+            const sf::Vector2f perp = {-unit_vector.y, unit_vector.x}; // Perpendicular vector
+            setVelocity(2.0f * (vel.x * perp.x + vel.y * perp.y) * perp - vel, 1.0f);
         }
     }
+
     void draw(sf::RenderWindow& window, sf::CircleShape& circle){
         circle.setPosition(position);
         circle.setFillColor(color);
@@ -115,6 +139,7 @@ int main(){
     //boundary definition
     sf::CircleShape boundary(200.f);
     boundary.setOrigin(boundary.getRadius()-20.f, boundary.getRadius()-20.f);  // Center the origin
+    //boundary.setPosition(boundary.getRadius()-20.f, boundary.getRadius()-20.f);
     boundary.setPosition((window.getSize().x / 2.f), (window.getSize().y / 2.f));
     Particle p_boundary(
         //sf::Vector2f((window.getSize().x / 2.f) - boundary.getRadius(),
@@ -126,12 +151,10 @@ int main(){
         sf::Vector2f(0.f,0.f),
         sf::Color(sf::Color::White)
     );
-    //boundary.setFillColor(sf::Color::White);
-    // adding color property to struct makes this line reduntant
 
     auto frame_clock = sf::Clock{};
     float lasttime=0;
-
+    int ball_count{0};
     // can edit from here
     while(window.isOpen()){
         sf::Event event;
@@ -153,6 +176,7 @@ int main(){
                 sf::Vector2f(0.f,0.f),sf::Vector2f(0.f,0.f)
                 ,r_color
                 );
+                ball_count++;
             }
         }
         //circle.setFillColor(Colors::getColor(static_cast<Colors::Color>(r_number)));
@@ -160,7 +184,7 @@ int main(){
         for(auto& particle:particles){
             particle.apply_gravity(dt);
             particle.update(dt);
-            particle.apply_boundary(p_boundary);
+            particle.apply_boundary(p_boundary,boundary);
             particle.draw(window,circle);
         }
 
@@ -168,9 +192,13 @@ int main(){
         float fps = 1.f/dt-lasttime;
         sf::Text FPS(std::to_string(fps),font,20);
         FPS.setFillColor(sf::Color::Red);
-        //const sf::Vector2f bound = p_boundary.position;
-        //sf::Text boundary(std::to_string(bound),font,20);
+
+        //ball counter
+        sf::Text balls(std::to_string(ball_count),font,20);
+        balls.setFillColor(sf::Color::Yellow);
+        balls.setPosition(0.f,20.f);
         window.draw(FPS);
+        window.draw(balls);
         lasttime=dt;
         window.display();
     }
