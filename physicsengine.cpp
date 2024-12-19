@@ -9,6 +9,7 @@
 namespace constants{
     const float g{9.8};
     const float pmp{800.f};
+    const float spawn_interval= 1.0f;
 }
 
 namespace Colors{
@@ -40,6 +41,17 @@ namespace Colors{
         }
     }
 }
+static sf::Color getRainbow(float t)
+{
+    const float r = sin(t);
+    const float g = sin(t + 0.33f * 2.0f * 3.14);
+    const float b = sin(t + 0.66f * 2.0f * 3.14);
+    return {static_cast<uint8_t>(255.0f * r * r),
+            static_cast<uint8_t>(255.0f * g * g),
+            static_cast<uint8_t>(255.0f * b * b)};
+}
+
+
 struct Particle{
     sf::Vector2f position;
     sf::Vector2f position_last;
@@ -58,6 +70,7 @@ struct Particle{
 
     void apply_gravity(float dt){
         acceleration.y +=constants::g*constants::pmp*dt;
+        velocity.y+=constants::g*constants::pmp*dt;
     }
     // can make a velocity function
     void update(float dt){
@@ -104,11 +117,37 @@ struct Particle{
             const sf::Vector2f vel = getvelocity(); // Get current velocity
 
             // Reflect position to boundary edge
-            position = circle.getPosition() + unit_vector * (circle.getRadius() - 20.f);
+            position = circle.getPosition() + unit_vector * (circle.getRadius() - 10.f);
 
             // Reflect velocity
             const sf::Vector2f perp = {-unit_vector.y, unit_vector.x}; // Perpendicular vector
             setVelocity(2.0f * (vel.x * perp.x + vel.y * perp.y) * perp - vel, 1.0f);
+        }
+    }
+
+    void checkCollision(std::vector<Particle>& particles){
+        for(int i=0;i<particles.size();i++){
+            Particle& particle1 = particles[i];
+            for(int j=i+1;j<particles.size();j++){
+                Particle& particle2 = particles[j];
+                const sf::Vector2f axis = particle1.position - particle2.position;
+                const float dist = sqrt(axis.x*axis.x+axis.y*axis.y);
+                if(dist<20.0f){
+                    const sf::Vector2f normal = axis/dist;
+                    const float delta = 20.f - dist;
+                    particle1.position +=0.5f*delta*normal;
+                    particle2.position -=0.5f*delta*normal;
+                    //CHATGPT SUGGESTION VELOCITY
+                    sf::Vector2f relativeVelocity = particle1.getvelocity() - particle2.getvelocity();
+                    float normalVelocity = relativeVelocity.x * normal.x + relativeVelocity.y * normal.y;
+
+                    if (normalVelocity < 0) { // Ensure they are moving towards each other
+                        sf::Vector2f impulse = -2.f * normalVelocity * normal;
+                        particle1.setVelocity(particle1.getvelocity() + 0.5f * impulse, 1.0f);
+                        particle2.setVelocity(particle2.getvelocity() - 0.5f * impulse, 1.0f);
+                    }
+                }
+            }
         }
     }
 
@@ -118,6 +157,8 @@ struct Particle{
         window.draw(circle);
     }
 };
+
+int ball_count{0};
 int main(){
     // do not edit here
     sf::RenderWindow window(sf::VideoMode(800,800),"Particle System");
@@ -131,14 +172,14 @@ int main(){
 
     //basic balls
     std::vector<Particle> particles;
-    sf::CircleShape circle(20.f);
+    sf::CircleShape circle(10.f);
     circle.setFillColor(sf::Color(178, 237, 197));
     //circle.setOutlineThickness(2.f);
     //circle.setOutlineColor(sf::Color(123, 178, 217));
 
     //boundary definition
     sf::CircleShape boundary(200.f);
-    boundary.setOrigin(boundary.getRadius()-20.f, boundary.getRadius()-20.f);  // Center the origin
+    boundary.setOrigin(boundary.getRadius()-10.f, boundary.getRadius()-10.f);  // Center the origin
     //boundary.setPosition(boundary.getRadius()-20.f, boundary.getRadius()-20.f);
     boundary.setPosition((window.getSize().x / 2.f), (window.getSize().y / 2.f));
     Particle p_boundary(
@@ -151,40 +192,62 @@ int main(){
         sf::Vector2f(0.f,0.f),
         sf::Color(sf::Color::White)
     );
-
+    sf::Clock color_change;
     auto frame_clock = sf::Clock{};
     float lasttime=0;
-    int ball_count{0};
+    float time_spawn = 0.f;
     // can edit from here
     while(window.isOpen()){
         sf::Event event;
         window.clear(sf::Color::Black);
         p_boundary.draw(window,boundary);
         auto dt = frame_clock.restart().asSeconds();
-        std::uniform_int_distribution<int> color_count{0,6};
-        int r_number{color_count(Random::mt)};
-        sf::Color r_color = Colors::getColor(static_cast<Colors::Color>(r_number));
+        float t = color_change.getElapsedTime().asSeconds();
+        time_spawn+=dt;
+        //std::uniform_int_distribution<int> color_count{0,6};
+        //int r_number{color_count(Random::mt)};
+        //sf::Color r_color = Colors::getColor(static_cast<Colors::Color>(r_number));
         while(window.pollEvent(event)){
             if(event.type==sf::Event::Closed){
                 window.close();
             }
             else if(sf::Mouse::isButtonPressed(sf::Mouse::Left)){
                 const sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
-
                 particles.emplace_back(sf::Vector2f(float(mousePosition.x),float(mousePosition.y)),
                 sf::Vector2f(float(mousePosition.x),float(mousePosition.y)),
                 sf::Vector2f(0.f,0.f),sf::Vector2f(0.f,0.f)
-                ,r_color
+                ,getRainbow(t)
                 );
                 ball_count++;
             }
         }
+        //if (time_spawn>= constants::spawn_interval) {
+        //     // Reset timer
+        //     time_spawn = 0.f;
+
+        //     // Spawn a new ball at a random position within the window
+        //     std::uniform_real_distribution<float> x_dist(0, window.getSize().x);
+        //     std::uniform_real_distribution<float> y_dist(0, window.getSize().y);
+        //     float random_x = x_dist(Random::mt);
+        //     float random_y = y_dist(Random::mt);
+        //     particles.emplace_back(
+        //         sf::Vector2f(boundary.getPosition().x, boundary.getPosition().y),  // Position
+        //         sf::Vector2f(boundary.getPosition().x, boundary.getPosition().y),  // Initial position
+        //         sf::Vector2f(0.f, 0.f),           // Velocity
+        //         sf::Vector2f(0.f, 0.f),           // Acceleration
+        //         getRainbow(t)                     // Color
+        //     );
+
+        //     ball_count++; // Update the ball count
+        //}
+
         //circle.setFillColor(Colors::getColor(static_cast<Colors::Color>(r_number)));
         //rendering balls
         for(auto& particle:particles){
             particle.apply_gravity(dt);
             particle.update(dt);
             particle.apply_boundary(p_boundary,boundary);
+            particle.checkCollision(particles);
             particle.draw(window,circle);
         }
 
